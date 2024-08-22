@@ -7,6 +7,23 @@
 
 DHT dht(DHTPIN, DHTTYPE);
 
+// thresholds
+int dryThreshold = 30;
+int wetThreshold = 70;
+bool pumpRunning = false;
+
+void pumpOn(int moisture, float temp) {
+  digitalWrite(PUMP_PIN, HIGH);
+  pumpRunning = true;
+  Serial.println("Pump ON | Moisture: " + String(moisture) + "% | Temp: " + String(temp) + "C");
+}
+
+void pumpOff(int moisture) {
+  digitalWrite(PUMP_PIN, LOW);
+  pumpRunning = false;
+  Serial.println("Pump OFF | Moisture restored: " + String(moisture) + "%");
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(PUMP_PIN, OUTPUT);
@@ -19,14 +36,13 @@ void setup() {
 void loop() {
   delay(2000);
 
-  // reading soil moisture
   int soilMoisture = analogRead(SOIL_MOISTURE_PIN);
   int moisturePercent = map(soilMoisture, 4095, 0, 0, 100);
 
-  // reading temp and humidity
   float temp = dht.readTemperature();
   float hum = dht.readHumidity();
 
+  Serial.println("---");
   Serial.print("Moisture: ");
   Serial.print(moisturePercent);
   Serial.println("%");
@@ -35,4 +51,15 @@ void loop() {
   Serial.print("C | Humidity: ");
   Serial.print(hum);
   Serial.println("%");
+
+  // auto pump control
+  if (moisturePercent < dryThreshold && !pumpRunning) {
+    Serial.println("Soil too dry!");
+    pumpOn(moisturePercent, temp);
+  } else if (moisturePercent > wetThreshold && pumpRunning) {
+    Serial.println("Moisture restored.");
+    pumpOff(moisturePercent);
+  } else {
+    Serial.println(pumpRunning ? "Irrigating..." : "Moisture OK");
+  }
 }
