@@ -1,27 +1,55 @@
 #include <DHT.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <time.h>
 
 #define DHTPIN 4
 #define DHTTYPE DHT22
 #define SOIL_MOISTURE_PIN 34
 #define PUMP_PIN 26
 
+const char* ssid = "YOUR_WIFI_NAME";
+const char* password = "YOUR_WIFI_PASSWORD";
+const char* telegramUsername = "@YOUR_TELEGRAM_USERNAME";
+const char* apiKey = "YOUR_CALLMEBOT_API_KEY";
+
 DHT dht(DHTPIN, DHTTYPE);
 
-// thresholds
 int dryThreshold = 30;
 int wetThreshold = 70;
 bool pumpRunning = false;
+int totalPumpCycles = 0;
+
+void sendAlert(String message) {
+  // sending telegram alert
+  HTTPClient http;
+  String url = "https://api.callmebot.com/text.php?user=" + String(telegramUsername) + "&apikey=" + String(apiKey) + "&text=" + message;
+  http.begin(url);
+  http.GET();
+  http.end();
+}
+
+String getTime() {
+  time_t now = time(nullptr);
+  struct tm* t = localtime(&now);
+  char buf[30];
+  strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", t);
+  return String(buf);
+}
 
 void pumpOn(int moisture, float temp) {
   digitalWrite(PUMP_PIN, HIGH);
   pumpRunning = true;
-  Serial.println("Pump ON | Moisture: " + String(moisture) + "% | Temp: " + String(temp) + "C");
+  totalPumpCycles++;
+  Serial.println("Pump ON");
+  sendAlert("Irrigation started at " + getTime() + " | Moisture: " + String(moisture) + "% | Temp: " + String(temp) + "C");
 }
 
 void pumpOff(int moisture) {
   digitalWrite(PUMP_PIN, LOW);
   pumpRunning = false;
-  Serial.println("Pump OFF | Moisture restored: " + String(moisture) + "%");
+  Serial.println("Pump OFF");
+  sendAlert("Irrigation stopped at " + getTime() + " | Moisture restored: " + String(moisture) + "%");
 }
 
 void setup() {
@@ -30,7 +58,17 @@ void setup() {
   digitalWrite(PUMP_PIN, LOW);
   dht.begin();
 
-  Serial.println("Smart Irrigation System Started");
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println(" Connected!");
+  configTime(19800, 0, "pool.ntp.org");
+  delay(2000);
+
+  Serial.println("Smart Irrigation System Ready");
 }
 
 void loop() {
@@ -51,13 +89,14 @@ void loop() {
   Serial.print("C | Humidity: ");
   Serial.print(hum);
   Serial.println("%");
+  Serial.print("Total pump cycles today: ");
+  Serial.println(totalPumpCycles);
 
-  // auto pump control
   if (moisturePercent < dryThreshold && !pumpRunning) {
-    Serial.println("Soil too dry!");
+    Serial.println("Soil too dry! Starting irrigation...");
     pumpOn(moisturePercent, temp);
   } else if (moisturePercent > wetThreshold && pumpRunning) {
-    Serial.println("Moisture restored.");
+    Serial.println("Moisture restored. Stopping pump...");
     pumpOff(moisturePercent);
   } else {
     Serial.println(pumpRunning ? "Irrigating..." : "Moisture OK");
