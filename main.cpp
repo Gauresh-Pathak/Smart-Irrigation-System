@@ -20,8 +20,26 @@ int wetThreshold = 70;
 bool pumpRunning = false;
 int totalPumpCycles = 0;
 
+void reconnectWifi() {
+  // retry wifi if disconnected
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi lost! Reconnecting...");
+    WiFi.begin(ssid, password);
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+      delay(500);
+      Serial.print(".");
+      attempts++;
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("Reconnected!");
+    } else {
+      Serial.println("Reconnection failed.");
+    }
+  }
+}
+
 void sendAlert(String message) {
-  // sending telegram alert
   HTTPClient http;
   String url = "https://api.callmebot.com/text.php?user=" + String(telegramUsername) + "&apikey=" + String(apiKey) + "&text=" + message;
   http.begin(url);
@@ -72,6 +90,7 @@ void setup() {
 }
 
 void loop() {
+  reconnectWifi();
   delay(2000);
 
   int soilMoisture = analogRead(SOIL_MOISTURE_PIN);
@@ -89,7 +108,7 @@ void loop() {
   Serial.print("C | Humidity: ");
   Serial.print(hum);
   Serial.println("%");
-  Serial.print("Total pump cycles today: ");
+  Serial.print("Total pump cycles: ");
   Serial.println(totalPumpCycles);
 
   if (moisturePercent < dryThreshold && !pumpRunning) {
