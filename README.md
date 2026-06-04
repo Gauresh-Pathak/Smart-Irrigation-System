@@ -32,5 +32,12 @@ saving water and removing the need for manual monitoring.
 5. Upload to ESP32
 6. Open Serial Monitor at 115200 baud
 
+## Future Improvements
+- Add soil pH sensor for better crop monitoring
+- Solar powered version for remote fields
+- Mobile app for remote control and monitoring
+- Support for multiple zones with individual pump control
+- Weather API integration to skip irrigation on rainy days
+
 ## Built by
 Gauresh Pathak — Electronics and Telecommunication Engineering Student, Mumbai
